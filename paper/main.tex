@@ -1,0 +1,198 @@
+% =====================================================================
+% DRAFT. Generic article class used as a placeholder.
+% BEFORE SUBMISSION: replace \documentclass and preamble with the target
+% venue's OFFICIAL template (e.g. CVPR/ICCV/ECCV/NeurIPS/ACL style files),
+% and remove the \TBD{} macro once every cell is filled from real runs.
+% NO NUMBER IN THIS FILE IS A RESULT. All result cells are \TBD{}.
+% =====================================================================
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{pifont}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+
+\newcommand{\TBD}{\textcolor{red}{[TBD]}}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newtheorem{hypothesis}{Hypothesis}
+
+\title{Calibrated Risk-Guided Selective Hallucination Mitigation\\in Large Vision-Language Models\\[4pt]
+\large\textcolor{red}{(Draft --- provisional title; all results pending)}}
+\author{Anonymous Authors}
+\date{}
+
+\begin{document}
+\maketitle
+
+% ---------------------------------------------------------------------
+\begin{abstract}
+Large vision-language models (LVLMs) frequently produce fluent descriptions that mention objects, attributes, or relations not present in the image. Existing remedies either alter decoding for every token, rewrite the entire response, or detect hallucinated tokens without controlling how many hallucinations survive. We study a pipeline that (i) estimates a per-token hallucination risk from model-internal features, (ii) calibrates this risk and chooses a flagging threshold with a distribution-free risk-control procedure (Learn-Then-Test), (iii) checks each flagged span against visual evidence with a three-way verdict (\textsc{Supported}, \textsc{Contradicted}, \textsc{Unknown}), and (iv) edits only contradicted spans, abstaining otherwise. We additionally propose minimal-change verification metrics (content preservation, new-hallucination rate, unnecessary edits) to measure collateral damage of correction. Token-level detection with calibration and LURE-based correction has already been proposed (MetaToken), and token-level localization from hidden states is established (HalLoc); our contributions are therefore narrower and are stated as hypotheses to be tested. Experiments use LLaVA-OneVision-0.5B for development and LLaVA-1.5-7B as the target model, on HalLoc, COCO/CHAIR, POPE, HallusionBench, and MMHal-Bench (with a local judge). Results: \TBD.
+\end{abstract}
+
+% ---------------------------------------------------------------------
+\section{Introduction}
+\label{sec:intro}
+LVLMs such as LLaVA-1.5~\cite{liu2024llava15} and LLaVA-OneVision~\cite{li2024llavaonevision} generate image-grounded text, yet a non-trivial fraction of the generated content is not supported by the image~\cite{rohrbach2018chair,li2023pope}. Mitigation methods fall broadly into three families: decoding-time interventions (VCD~\cite{leng2024vcd}, OPERA~\cite{huang2024opera}, HALC~\cite{chen2024halc}, VISTA~\cite{li2025vista}); training-time alignment (LLaVA-RLHF~\cite{sun2024llavarlhf}, HSA-DPO~\cite{xiao2025hsadpo}); and post-hoc detection/correction (Woodpecker~\cite{yin2024woodpecker}, LURE~\cite{zhou2024lure}, LogicCheckGPT~\cite{wu2024logiccheckgpt}, M-HalDetect~\cite{gunjal2024mhaldetect}).
+
+A practical deployment concern is that post-hoc correctors may (a) intervene too often, damaging correct content, and (b) give no guarantee on how many hallucinations remain. Selective prediction in VQA~\cite{whitehead2022reliable} shows that abstention can trade coverage for reliability; we ask whether the same principle, combined with distribution-free risk control~\cite{angelopoulos2025ltt,angelopoulos2022crc}, can make token-level correction both targeted and auditable.
+
+\paragraph{Relation to prior work (honest overlap statement).}
+MetaToken~\cite{fieback2024metatoken} already trains a lightweight token-level hallucination detector on model-derived features, reports calibration, and pairs it with LURE~\cite{zhou2024lure} for correction. HalLoc~\cite{park2025halloc} already provides token-level hallucination labels (object/attribute/relationship/scene) and hidden-state-based localizers. ECD~\cite{fieback2025ecd} already uses a token detector to guide decoding. Thus ``MLP detector + calibration + correction'' is \emph{not} novel on its own. Our contributions are the following hypotheses, each of which may be refuted by the experiments.
+
+\begin{hypothesis}[Risk-controlled flagging]\label{hyp:ltt}
+Choosing the flagging threshold with Learn-Then-Test on a held-out calibration split keeps the miss rate on hallucinated tokens below a user-chosen level $\alpha$ with probability at least $1-\delta$ on exchangeable test data, while a fixed threshold on Platt-calibrated scores does not.
+\end{hypothesis}
+\begin{hypothesis}[Selective minimal correction]\label{hyp:minimal}
+Editing only spans that are both flagged and \textsc{Contradicted}, and abstaining otherwise, reduces hallucination (CHAIR) comparably to whole-response rewriting while preserving more supported content and introducing fewer new hallucinations.
+\end{hypothesis}
+\begin{hypothesis}[Beyond objects and across datasets]\label{hyp:transfer}
+Calibration fitted on HalLoc transfers to COCO-caption responses with bounded degradation in ECE, and detection extends to attribute and relation tokens.
+\end{hypothesis}
+
+% ---------------------------------------------------------------------
+\section{Related Work}
+\label{sec:related}
+\paragraph{Benchmarks.} CHAIR~\cite{rohrbach2018chair} measures object hallucination in captions using COCO~\cite{lin2014coco} annotations; POPE~\cite{li2023pope} probes objects with yes/no questions; HallusionBench~\cite{guan2024hallusionbench} targets language-prior and visual-illusion failures; MMHal-Bench~\cite{sun2024llavarlhf} scores open-ended answers with an LLM judge; HalLoc~\cite{park2025halloc} provides token-level labels.
+\paragraph{Detection.} M-HalDetect~\cite{gunjal2024mhaldetect} trains reward-model-style detectors; MetaToken~\cite{fieback2024metatoken} uses meta-classification on token statistics; HalLoc~\cite{park2025halloc} localizes from hidden states; HSA-DPO~\cite{xiao2025hsadpo} uses fine-grained AI feedback for detection and preference optimisation.
+\paragraph{Mitigation.} Contrastive or steering decoders~\cite{leng2024vcd,huang2024opera,chen2024halc,li2025vista,fieback2025ecd} act at every step; post-hoc correctors~\cite{yin2024woodpecker,zhou2024lure,wu2024logiccheckgpt} revise completed outputs.
+\paragraph{Calibration and risk control.} Platt scaling~\cite{platt1999probabilistic} and temperature scaling~\cite{guo2017calibration} calibrate scores; Learn-Then-Test~\cite{angelopoulos2025ltt} and conformal risk control~\cite{angelopoulos2022crc} give finite-sample risk guarantees; reliable VQA~\cite{whitehead2022reliable} studies abstention in VQA.
+Table~\ref{tab:related} summarises the positioning.
+
+\input{tables/related_work}
+
+% ---------------------------------------------------------------------
+\section{Problem Formulation}
+\label{sec:problem}
+Let $I$ denote an image, $q$ a text prompt, and $f_\theta$ a frozen LVLM with parameters $\theta$. The model produces a response $y = (y_1,\dots,y_T)$ of $T$ tokens. Each token $y_i$ has a binary label $h_i \in \{0,1\}$, where $h_i=1$ iff the token lies inside a hallucinated span (a span whose content is not supported by $I$); tokens that are special or have empty character offsets are ignored (label $-100$ in code). A hallucinated span $s=(a,b,\kappa)$ covers character offsets $[a,b)$ of the decoded text and has type $\kappa \in \{\text{object},\text{attribute},\text{relationship},\text{scene},\text{unknown}\}$.
+
+We seek a mitigation map $g: (I,q,y) \mapsto \tilde y$ that outputs a revised response $\tilde y$ such that (1) hallucinated spans in $y$ are removed or replaced, (2) supported content of $y$ is preserved, (3) no new hallucination is introduced, and (4) the edit from $y$ to $\tilde y$ is small. Additionally, for a user-chosen risk level $\alpha\in(0,1)$ and failure probability $\delta\in(0,1)$, the flagging stage should satisfy
+\begin{equation}
+\Pr\!\left[\,\mathrm{FNR}(\hat\tau) \le \alpha\,\right] \ge 1-\delta,\qquad
+\mathrm{FNR}(\tau) = \Pr\!\left[p_i < \tau \mid h_i = 1\right],
+\label{eq:risk}
+\end{equation}
+where $p_i$ is the calibrated risk of token $i$ and $\hat\tau$ is a data-dependent threshold; the outer probability is over the draw of the calibration set.
+
+% ---------------------------------------------------------------------
+\section{Method}
+\label{sec:method}
+
+\subsection{Feature extraction}
+For each token $y_i$, obtained by free generation or teacher forcing of a labelled response, we extract a feature vector $z_i\in\R^D$ by concatenating:
+(a) the log-probability $\ell_i = \log p_\theta(y_i \mid y_{<i}, I, q)$;
+(b) the predictive entropy $H_i = -\sum_{v\in\mathcal V} p_\theta(v\mid y_{<i},I,q)\log p_\theta(v\mid y_{<i},I,q)$, where $\mathcal V$ is the vocabulary;
+(c) the top-1/top-2 margin $m_i$ and the rank $\rho_i$ of $y_i$ in the predicted distribution;
+(d) hidden states $e_i^{(l)}\in\R^{d}$ from a set of layers $\mathcal L$, where $d$ is the hidden width;
+(e) optional grounding features $c_i\in\R^G$ (e.g.\ attention mass on image tokens), with $G=0$ allowed.
+Thus $z_i = [\ell_i, H_i, m_i, \rho_i, (e_i^{(l)})_{l\in\mathcal L}, c_i]$ and $D = 4 + |\mathcal L|d + G$.
+
+\subsection{Token risk estimator}
+The simplest estimator is logistic regression, $r_i = \sigma(w^\top z_i + b)$ with $w\in\R^D$, $b\in\R$ and $\sigma(u)=1/(1+e^{-u})$. We generalise this to a small MLP $\phi_\psi:\R^D\to\R$ with parameters $\psi$, producing a logit $u_i = \phi_\psi(z_i)$ and an uncalibrated risk
+\begin{equation}
+r_i = \sigma(u_i) = \sigma(\phi_\psi(z_i)),
+\end{equation}
+which reduces to the logistic case when $\phi_\psi$ is affine. Training minimises a (class-weighted) binary cross-entropy (Sec.~\ref{sec:loss}). Splits are grouped by image identifier to avoid leakage.
+
+\subsection{Calibration and risk-controlled threshold}
+Let $\mathcal D_{\text{cal}} = \{(u_j, h_j)\}_{j=1}^{n}$ be a held-out calibration set of $n$ token logits and labels, disjoint by image from training and test data. We map logits to calibrated probabilities $p_i = \kappa(u_i)$ using one of:
+\textbf{Platt scaling}~\cite{platt1999probabilistic}: $\kappa(u)=\sigma(a u + c)$ with scalars $a,c$ fitted by log-loss;
+\textbf{temperature scaling}~\cite{guo2017calibration}: $\kappa(u)=\sigma(u/T_{\text{temp}})$ with temperature $T_{\text{temp}}>0$;
+\textbf{isotonic regression}: $\kappa$ is the monotone non-decreasing step function minimising squared error on $\mathcal D_{\text{cal}}$.
+
+\paragraph{Learn-Then-Test threshold.} Calibration alone does not bound the miss rate in Eq.~\eqref{eq:risk}. Following Learn-Then-Test~\cite{angelopoulos2025ltt}, we consider a finite grid $\Lambda = \{\tau_1 > \tau_2 > \dots > \tau_K\}$ of candidate thresholds. For each $\tau_k$ we compute the empirical miss rate on the $n_+$ positive calibration tokens, $\widehat{R}(\tau_k) = \frac{1}{n_+}\sum_{j:h_j=1}\mathbb 1[p_j<\tau_k]$, and a Hoeffding p-value for the null $H_k:\ \mathrm{FNR}(\tau_k) > \alpha$,
+\begin{equation}
+\pi_k = \exp\!\left(-2 n_+ \big(\alpha - \widehat R(\tau_k)\big)_+^2\right).
+\end{equation}
+Using fixed-sequence testing from the most to the least conservative threshold, we reject $H_k$ while $\pi_k \le \delta$, and set $\hat\tau$ to the largest threshold whose null was rejected (if none, we fall back to flagging every token). Under exchangeability of calibration and test tokens, this controls Eq.~\eqref{eq:risk}. Note that tokens within one response are not independent; we therefore also report an image-level (cluster) variant in which $\widehat R$ is computed per image and $n_+$ is replaced by the number of images containing a positive token. Whether the token-level guarantee holds empirically is Hypothesis~\ref{hyp:ltt}.
+
+\subsection{Grounding check}
+Flagged tokens ($p_i \ge \hat\tau$) are merged into word-aligned spans $\hat s$ (adjacent flagged tokens with gap $\le 1$). Each span is sent to a checker $\mathcal C(\hat s, I) \in \{\textsc{Supported}, \textsc{Contradicted}, \textsc{Unknown}\}$ with two back-ends:
+(i) an \emph{annotation} back-end on COCO, returning \textsc{Contradicted} only if the span names a COCO class that appears neither in the instance annotations nor in any reference caption of $I$, \textsc{Supported} if it appears, and \textsc{Unknown} otherwise (absence of annotation is not proof of absence, so non-COCO concepts are always \textsc{Unknown});
+(ii) a \emph{VQA} back-end that asks $f_\theta$ ``Is there a $\langle$object$\rangle$ in the image?''. The VQA back-end shares failure modes with the generator and is reported separately.
+
+\subsection{Selective span correction with abstention}
+For each flagged span: \textsc{Supported} $\Rightarrow$ keep; \textsc{Unknown} $\Rightarrow$ keep (abstain) or, optionally, hedge; \textsc{Contradicted} $\Rightarrow$ apply the minimal edit, i.e.\ delete the noun phrase with light grammatical clean-up, or substitute a VQA-supported alternative if one is available. No other part of the response is modified. A response with no contradicted span is returned unchanged.
+
+\subsection{Minimal-change verification metrics}
+Let $\mathcal H(y)$ be the set of gold hallucinated spans in $y$, $\mathcal S(y)$ the set of supported content units (e.g.\ ground-truth COCO objects mentioned in $y$), and $\mathcal H(\tilde y)$ the hallucinations in $\tilde y$ after correction. We report
+\begin{align}
+\text{HallRemoved} &= |\mathcal H(y)\setminus \mathcal H(\tilde y)| \,/\, |\mathcal H(y)|,\\
+\text{Preservation} &= |\mathcal S(y)\cap \mathcal S(\tilde y)| \,/\, |\mathcal S(y)|,\\
+\text{NewHall} &= |\mathcal H(\tilde y)\setminus \mathcal H(y)| \,/\, \max(1,|\mathcal H(\tilde y)|),\\
+\text{Unnecessary} &= \#\{\text{edits not overlapping any } s\in\mathcal H(y)\} \,/\, \max(1,\#\text{edits}),\\
+\text{EditDist} &= \mathrm{lev}(y,\tilde y)\,/\,|y|,
+\end{align}
+where $\mathrm{lev}$ is character Levenshtein distance and $|y|$ the character length. An unchanged response that contains hallucinations receives $\text{HallRemoved}=0$.
+
+% ---------------------------------------------------------------------
+\section{Conceptual Objective}
+\label{sec:loss}
+We summarise the desiderata as a conceptual multi-term objective
+\begin{equation}
+\mathcal J = \mathcal L_{\text{det}} + \lambda_{\text{cal}}\mathcal L_{\text{cal}} + \lambda_{\text{risk}}\mathcal L_{\text{risk}} + \lambda_{\text{pres}}\mathcal L_{\text{pres}} + \lambda_{\text{new}}\mathcal L_{\text{new}} + \lambda_{\text{edit}}\mathcal L_{\text{edit}},
+\end{equation}
+with non-negative weights $\lambda_\bullet$. \textbf{Only $\mathcal L_{\text{det}}$ is minimised by gradient descent.} The remaining terms are either fitted by separate post-hoc procedures or used purely for evaluation and model selection.
+\begin{itemize}
+\item $\mathcal L_{\text{det}} = -\frac{1}{N}\sum_i \big[\beta h_i\log r_i + (1-h_i)\log(1-r_i)\big]$, the weighted BCE over $N$ labelled tokens, with $\beta = N_-/N_+$ the ratio of negative to positive tokens. \emph{Differentiable; trains $\psi$.}
+\item $\mathcal L_{\text{cal}}$: negative log-likelihood of $\kappa(u_j)$ on $\mathcal D_{\text{cal}}$. \emph{Differentiable for Platt/temperature but fitted separately with $\psi$ frozen; isotonic regression is fitted by pool-adjacent-violators and is non-differentiable.} Reported via ECE and Brier score.
+\item $\mathcal L_{\text{risk}} = (\mathrm{FNR}(\hat\tau)-\alpha)_+$. \emph{Non-differentiable (indicator functions, discrete grid search); enforced by the LTT procedure, not by gradients; evaluation-only.}
+\item $\mathcal L_{\text{pres}} = 1-\text{Preservation}$, $\mathcal L_{\text{new}} = \text{NewHall}$, $\mathcal L_{\text{edit}} = \text{EditDist}$. \emph{Non-differentiable (depend on discrete edits, the grounding checker, and string distance); evaluation-only, used for selecting the policy and $\alpha$.}
+\end{itemize}
+
+% ---------------------------------------------------------------------
+\section{Experimental Setup}
+\label{sec:setup}
+\paragraph{Models.} Development model: LLaVA-OneVision-Qwen2-0.5B~\cite{li2024llavaonevision} (fp16, fits a 4\,GB GPU). Target model: LLaVA-1.5-7B~\cite{liu2024llava15}, run on hardware with $\ge$16\,GB GPU memory. Features differ across models, so detectors are trained and reported per model; no cross-model transfer is claimed.
+\paragraph{Datasets.} HalLoc~\cite{park2025halloc} (token-level labels; we start with the COCO-image subset; licence unstated, used for research only); COCO 2014~\cite{lin2014coco} val images and annotations for CHAIR~\cite{rohrbach2018chair} and the annotation back-end; POPE~\cite{li2023pope} (random/popular/adversarial); HallusionBench~\cite{guan2024hallusionbench}; MMHal-Bench~\cite{sun2024llavarlhf}.
+\paragraph{Deviation: MMHal-Bench judge.} The official protocol uses GPT-4 as the judge. Our pipeline runs locally, so we substitute a local open-weight judge \TBD{}. Scores are therefore \emph{not comparable} to published MMHal-Bench numbers and are marked with $\dagger$.
+\paragraph{Baselines.} No mitigation; whole-response rewrite by the same LVLM; Woodpecker-style~\cite{yin2024woodpecker} and LURE-style~\cite{zhou2024lure} correction; VCD~\cite{leng2024vcd}; a MetaToken-style~\cite{fieback2024metatoken} detector with rewrite.
+\paragraph{Splits and statistics.} Train/calibration/test splits are disjoint by image. We report 95\% bootstrap confidence intervals over images (1000 resamples) and seeds \TBD{}.
+\paragraph{Metrics.} Detection: precision, recall, F1, AUROC, AUPRC. Calibration: ECE (15 bins), Brier, reliability diagrams, risk--coverage curves and AURC. Mitigation: CHAIR$_s$, CHAIR$_i$, POPE accuracy/F1/yes-ratio, HallusionBench accuracy, MMHal-Bench$^\dagger$, and the minimal-change metrics above. Latency per response.
+
+% ---------------------------------------------------------------------
+\section{Results}
+\label{sec:results}
+Table~\ref{tab:main} will report the main comparison. \textbf{No results are available yet; all cells are \TBD.} Conclusions regarding Hypotheses~\ref{hyp:ltt}--\ref{hyp:transfer} will be written only after the runs.
+
+\input{tables/main_results}
+
+% ---------------------------------------------------------------------
+\section{Ablation}
+\label{sec:ablation}
+Configs A--H (Table~\ref{tab:ablation}) isolate feature sets (A, B, C), calibration method (D, E, F), the risk-controlled threshold (G), and the grounding check with abstention (H). Findings: \TBD.
+
+\input{tables/ablation}
+
+% ---------------------------------------------------------------------
+\section{Calibration Analysis}
+\label{sec:calibration}
+We will report reliability diagrams per calibrator, ECE/Brier on in-domain (HalLoc) and shifted (COCO captions from the target model) data, and the empirical FNR of $\hat\tau$ versus the target $\alpha \in \{0.05, 0.1, 0.2\}$ over repeated calibration/test splits (fraction of splits violating $\alpha$, to be compared against $\delta$). Results: \TBD.
+
+% ---------------------------------------------------------------------
+\section{Failure Cases}
+\label{sec:failures}
+Anticipated failure modes to be documented with examples: (1) \textsc{Unknown} verdicts for non-COCO concepts, leaving true hallucinations uncorrected by design; (2) annotation gaps causing false \textsc{Contradicted} verdicts; (3) VQA back-end inheriting the generator's own biases; (4) grammatically broken output after span deletion; (5) attribute/relation hallucinations that cannot be fixed by deletion alone. Qualitative examples: \TBD.
+
+% ---------------------------------------------------------------------
+\section{Limitations and Ethics}
+\label{sec:limits}
+\textbf{Limitations.} The method is post-hoc and cannot fix hallucinations the detector misses; risk control holds only under exchangeability and only for the token-level miss rate, not for downstream answer quality; tokens within a response are dependent, so the token-level Hoeffding bound is optimistic (we report the image-level variant); grounding is reliable only for COCO object classes; the development model is much smaller than the target; MMHal-Bench uses a non-official judge; no causal claims about the \emph{source} of hallucinations are made, and source labels are reported as \textsc{Unknown} unless explicitly annotated.
+\textbf{Ethics.} HalLoc's licence is unstated; we use it for research only and do not redistribute it. COCO images may depict people; we do not analyse personal attributes. A risk-controlled corrector may create unwarranted trust; we report its failure rates alongside guarantees.
+
+% ---------------------------------------------------------------------
+\section{Conclusion}
+\label{sec:conclusion}
+We outlined a selective, risk-controlled, minimal-change pipeline for hallucination mitigation in LVLMs, explicitly positioned against MetaToken, HalLoc, and LURE, and formulated three testable hypotheses. Whether they hold is \TBD.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

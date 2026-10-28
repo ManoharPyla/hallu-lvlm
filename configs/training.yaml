@@ -1,0 +1,13 @@
+seed: 0
+train:
+  loss: weighted_bce           # bce | weighted_bce (pos_weight = neg/pos)
+  lr: 0.001
+  weight_decay: 0.0001
+  epochs: 50
+  batch_size: 512
+  patience: 5                  # early stopping on val AUPRC
+  seed: 0
+logreg:
+  C: 1.0
+  class_weight: balanced       # null | balanced
+  max_iter: 1000

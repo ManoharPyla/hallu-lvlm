@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.*
+
+# Data, downloaded datasets and extracted features
+data/
+*.npz
+*.npy
+*.h5
+*.hdf5
+
+# Model weights and checkpoints
+weights/
+checkpoints/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+
+# Experiment outputs: ignore by default, preserve lightweight results
+experiments/runs/
+experiments/results/*
+!experiments/results/*.json
+!experiments/results/*.csv
+!experiments/results/*.md
+!experiments/results/.gitkeep
+
+# Logs and temporary files
+*.log
+.DS_Store
+.ipynb_checkpoints/
+
+# Generated LaTeX files
+paper/*.aux
+paper/*.out
+paper/*.toc
+paper/*.fls
+paper/*.fdb_latexmk
+
+# Local backup files
+*.bak
+.gitignore.backup

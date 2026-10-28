@@ -1,0 +1,20 @@
+lvlm:
+  model_id: llava-hf/llava-onevision-qwen2-0.5b-ov-hf   # alt: llava-hf/llava-1.5-7b-hf
+  device: auto
+  dtype: float16
+  load_in_4bit: false          # requires bitsandbytes (CUDA)
+  hidden_layers: [-1]
+  output_attentions: false     # true -> eager attention + image-attention mass (not proof of grounding)
+  max_new_tokens: 128
+
+detector:
+  name: mlp                    # mlp | logreg
+  hidden_dims: [256, 64]
+  dropout: 0.1
+  features: [hidden, logprob, entropy, grounding]
+
+calibration:
+  method: temperature          # identity | platt | temperature | isotonic
+  conformal:
+    alpha: 0.2                 # target max miss rate on hallucinated tokens
+    delta: 0.1

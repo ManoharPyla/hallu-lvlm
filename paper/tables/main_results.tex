@@ -1,0 +1,22 @@
+% Main results. Every cell is \TBD{} until produced by experiments/ scripts.
+\begin{table*}[t]
+\centering
+\caption{Main results on LLaVA-1.5-7B (target model). CHAIR$_s$/CHAIR$_i$: lower is better. POPE: F1 averaged over random/popular/adversarial splits. HallusionBench: question accuracy (aAcc). MMHal-Bench: score from a \emph{local} judge (deviation from the official GPT-4 judge; not comparable to published numbers). Pres.: supported-content preservation rate; NewH: new-hallucination rate; Edit: normalised character edit distance. All cells are placeholders.}
+\label{tab:main}
+\small
+\begin{tabular}{lcccccccc}
+\toprule
+Method & CHAIR$_s\downarrow$ & CHAIR$_i\downarrow$ & POPE F1$\uparrow$ & HallusionB.$\uparrow$ & MMHal$^\dagger\uparrow$ & Pres.$\uparrow$ & NewH$\downarrow$ & Edit$\downarrow$ \\
+\midrule
+No mitigation            & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+Whole-response rewrite   & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+Woodpecker-style~\cite{yin2024woodpecker} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+LURE-style~\cite{zhou2024lure} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+VCD~\cite{leng2024vcd}   & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+MetaToken-style detector + rewrite~\cite{fieback2024metatoken} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+\midrule
+Ours (Platt, fixed $\tau{=}0.5$) & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+Ours (LTT threshold $\hat\tau_\alpha$) & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+\bottomrule
+\end{tabular}
+\end{table*}

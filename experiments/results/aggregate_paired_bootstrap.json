@@ -1,0 +1,29 @@
+{
+  "comparison": "full detector minus hidden-only",
+  "metric": "AUPRC",
+  "calibration": "Platt",
+  "threshold_policy": "not applicable to AUPRC; scores evaluated across thresholds",
+  "aggregation": "mean paired AUPRC difference across matched seeds within each image bootstrap replicate",
+  "bootstrap_unit": "image_id; same sampled images for both models and every seed",
+  "n_images": 60,
+  "n_tokens": 13324,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "bootstrap_replicates_requested": 1000,
+  "bootstrap_replicates_valid": 1000,
+  "per_seed_point_differences": {
+    "0": 0.0123372437580192,
+    "1": 0.041904822108019435,
+    "2": 0.06211067966886141,
+    "3": 0.006772290388718016,
+    "4": 0.03522217234899211
+  },
+  "mean_paired_auprc_difference": 0.03166944165452203,
+  "ci95_low": 0.012130352279382034,
+  "ci95_high": 0.0512856966154778
+}

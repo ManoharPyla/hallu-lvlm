@@ -1,0 +1,22 @@
+% Ablation configs A--H. All cells are placeholders.
+\begin{table}[t]
+\centering
+\caption{Ablation (configs A--H) on the HalLoc test split (COCO-image subset) and COCO captions. Token AUPRC and ECE are detection/calibration metrics; CHAIR$_i$, Pres.\ and NewH are mitigation metrics. All cells are placeholders.}
+\label{tab:ablation}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{clccccc}
+\toprule
+ID & Configuration & AUPRC$\uparrow$ & ECE$\downarrow$ & CHAIR$_i\downarrow$ & Pres.$\uparrow$ & NewH$\downarrow$ \\
+\midrule
+A & Scalar features only ($\ell_i,H_i$), LogReg      & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+B & Hidden states only, MLP                          & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+C & All features, MLP, uncalibrated                  & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+D & C + Platt scaling                                & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+E & C + temperature scaling                          & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+F & C + isotonic regression                          & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+G & D + LTT threshold, no grounding check            & \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+H & D + LTT threshold + grounding + abstention (full)& \TBD{} & \TBD{} & \TBD{} & \TBD{} & \TBD{} \\
+\bottomrule
+\end{tabular}
+\end{table}

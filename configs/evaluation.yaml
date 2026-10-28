@@ -1,0 +1,48 @@
+# Evaluation configuration. Thresholds are chosen on VALIDATION data only
+# (hallu.evaluation.metrics.select_threshold); never tuned on test.
+seed: 0
+
+detection:
+  default_threshold: 0.5
+  threshold_objective: f1          # f1 | risk_control
+  threshold_grid: {start: 0.01, stop: 0.99, num: 99}
+  risk_control:
+    alpha: 0.10                    # max miss rate (FNR among hallucinated tokens)
+    delta: 0.10                    # failure probability of the guarantee
+
+calibration:
+  methods: [identity, platt, temperature, isotonic]
+  ece:
+    n_bins: 15
+    strategy: uniform              # equal-width bins; ECE = sum_b |b|/N * |acc_b - conf_b|
+
+bootstrap:
+  n: 1000
+  alpha: 0.05
+  resample_unit: image_id          # resample images, not tokens
+
+grounding:
+  backends: [annotation]           # annotation | vqa
+  hedge_unknown: false
+
+policies:
+  - none
+  - whole_rewrite
+  - selective
+
+# Ablations (A-H). The phase-1 plan does not enumerate these; this list is the
+# working definition and must be confirmed before experiments.
+ablations:
+  A: {name: logprob_entropy_only, features: [logprob, entropy]}
+  B: {name: hidden_only, features: [hidden]}
+  C: {name: hidden_plus_scalar, features: [hidden, logprob, entropy]}
+  D: {name: full_with_grounding, features: [hidden, logprob, entropy, grounding]}
+  E: {name: no_calibration, calibrator: identity}
+  F: {name: platt_vs_temperature_vs_isotonic, calibrator: [platt, temperature, isotonic]}
+  G: {name: f1_threshold_vs_risk_control, threshold_objective: [f1, risk_control]}
+  H: {name: selective_without_grounding_check, policy: selective, checker: none}
+
+reporting:
+  digits: 3
+  missing: "--"
+  plots: [reliability, risk_coverage, threshold_sweep]

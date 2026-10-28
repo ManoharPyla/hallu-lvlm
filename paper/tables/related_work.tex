@@ -1,0 +1,23 @@
+% Qualitative positioning table (no numbers). Checkmarks describe method design
+% as stated in the cited papers; verify again before submission.
+\begin{table*}[t]
+\centering
+\caption{Positioning against closely related work. \cmark: component is a stated part of the method; \xmark: not part of it; ``--'': not applicable. ``Risk-controlled threshold'' means a distribution-free guarantee on a hallucination risk, not only probability calibration.}
+\label{tab:related}
+\small
+\begin{tabular}{lccccc}
+\toprule
+Method & \shortstack{Token-level\\detection} & \shortstack{Calibrated\\probabilities} & \shortstack{Risk-controlled\\threshold} & \shortstack{Post-hoc\\correction} & \shortstack{Minimal-change /\\abstention metrics} \\
+\midrule
+MetaToken~\cite{fieback2024metatoken} & \cmark & \cmark & \xmark & \cmark{} (via LURE) & \xmark \\
+HalLoc~\cite{park2025halloc}          & \cmark & --     & \xmark & \xmark & \xmark \\
+ECD~\cite{fieback2025ecd}             & \cmark & --     & \xmark & \xmark{} (decoding-time) & \xmark \\
+LURE~\cite{zhou2024lure}              & \xmark & \xmark & \xmark & \cmark & \xmark \\
+Woodpecker~\cite{yin2024woodpecker}   & \xmark & \xmark & \xmark & \cmark & \xmark \\
+LogicCheckGPT~\cite{wu2024logiccheckgpt} & \xmark & \xmark & \xmark & \cmark & \xmark \\
+VCD~\cite{leng2024vcd}, OPERA~\cite{huang2024opera}, HALC~\cite{chen2024halc}, VISTA~\cite{li2025vista} & \xmark & \xmark & \xmark & \xmark{} (decoding-time) & \xmark \\
+\midrule
+This work (hypothesis)                & \cmark & \cmark & \cmark & \cmark & \cmark \\
+\bottomrule
+\end{tabular}
+\end{table*}

@@ -1,0 +1,36 @@
+# Dataset configuration (paths are local; nothing is downloaded by the code).
+seed: 0
+image_roots:
+  - data/images/coco2014        # contains val2014/ and train2014/
+  - data/images/visual_genome   # contains VG_100K/ and VG_100K_2/
+  - data/images/hallusionbench
+  - data/images/mmhal
+
+halloc:
+  root: data/raw/halloc          # halloc_vqa.json, halloc_instruct.json, halloc_caption.json
+  tasks: [vqa, instruct, caption]
+  keep_partial: false            # drop (but record) samples with unresolvable annotations
+  max_samples: null              # deterministic subsample when set
+
+pope:
+  root: data/raw/pope            # *_random.json, *_popular.json, *_adversarial.json (JSONL)
+
+coco:
+  captions_json: data/raw/coco/annotations/captions_val2014.json
+  instances_json: data/raw/coco/annotations/instances_val2014.json
+
+hallusionbench:
+  path: data/raw/hallusionbench/HallusionBench.json
+  include_no_visual: true
+
+mmhal:
+  path: data/raw/mmhal/response_template.json
+
+split:
+  ratios: {train: 0.7, cal: 0.1, val: 0.1, test: 0.1}
+  group_by: image_id
+
+output:
+  processed_dir: data/processed
+  malformed_report: data/processed/malformed.json
+  stats_markdown: results/dataset_stats.md
